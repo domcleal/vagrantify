@@ -46,6 +46,8 @@ shift $((OPTIND-1))
 [ $# -lt 1 ] && usage
 DISK=$1
 
+package_format=$(virt-inspector -a $DISK | virt-inspector --xpath "string(//package_format)")
+
 GUESTFISH_PID=
 eval "`guestfish --listen -i -a $DISK`"
 if [ -z "$GUESTFISH_PID" ]; then
@@ -68,8 +70,8 @@ cat > $TMPDIR/user-data << EOF
 packages:
   - curl
   - rsync
-  - which
 EOF
+[ $package_format = rpm ] && echo -e "  - which\n  - yum-utils" >> $TMPDIR/user-data
 [ -n "$PUPPET" ] && echo "  - puppet" >> $TMPDIR/user-data
 cat >> $TMPDIR/user-data << EOF
 users:
@@ -89,6 +91,7 @@ write_files:
 runcmd:
   - [ sh, -c, echo DHCP_HOSTNAME=localhost >> /etc/sysconfig/network-scripts/ifcfg-eth0 ]
 EOF
+[ $package_format = deb ] && echo "  - dpkg-reconfigure openssh-server" >> $TMPDIR/user-data
 [ -n "$REBUILD" ] && echo "  - shutdown -h +1" >> $TMPDIR/user-data
 [ -n "$PACKAGE_UPGRADE" ] && echo "package_upgrade: true" >> $TMPDIR/user-data
 
