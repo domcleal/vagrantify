@@ -37,11 +37,7 @@ Tested with:
 * RHEL 6.5 image: [Customer Portal](https://rhn.redhat.com/rhn/software/channel/downloads/Download.do?cid=16952)
 * CentOS 6.4 OpenStack image: [centos.org](http://dev.centos.org/centos/hvm/)
 * Debian 7 (Wheezy) image: [openstack-debian-images](http://packages.debian.org/openstack-debian-images)
-
-Failed with:
-
 * Ubuntu 12.04 image: [cloud-images.ubuntu.com](http://cloud-images.ubuntu.com/precise/current/)
-  * cloud-init 0.6 didn't seem to understand many cloud-config modules used in the user-data
 
 ### Building Debian images
 

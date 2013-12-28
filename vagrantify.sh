@@ -46,8 +46,6 @@ shift $((OPTIND-1))
 [ $# -lt 1 ] && usage
 DISK=$1
 
-package_format=$(virt-inspector -a $DISK | virt-inspector --xpath "string(//package_format)")
-
 GUESTFISH_PID=
 eval "`guestfish --listen -i -a $DISK`"
 if [ -z "$GUESTFISH_PID" ]; then
@@ -66,89 +64,77 @@ guestfish --remote -- mkdir-p /var/lib/cloud/seed/nocloud-net
 guestfish --remote -- touch /var/lib/cloud/seed/nocloud-net/meta-data
 
 cat > $TMPDIR/user-data << EOF
-#cloud-config
-packages:
-  - curl
-  - rsync
-EOF
-[ $package_format = rpm ] && echo -e "  - which\n  - yum-utils" >> $TMPDIR/user-data
-[ -n "$PUPPET" ] && echo "  - puppet" >> $TMPDIR/user-data
-cat >> $TMPDIR/user-data << EOF
-users:
-  - name: vagrant
-    gecos: Vagrant User
-    groups: users
-    ssh-authorized-keys:
-      - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant insecure public key
-    lock-passwd: false
-    passwd: \$1\$rP8l.Eft\$BPzhFx/gjhZ8lj.N7jHF30
-write_files:
-  - content: |
-      vagrant ALL=(ALL) NOPASSWD:ALL
-      Defaults:vagrant !requiretty
-    path: /etc/sudoers.d/10-vagrant
-    permissions: '0600'
-runcmd:
-  - [ sh, -c, echo DHCP_HOSTNAME=localhost >> /etc/sysconfig/network-scripts/ifcfg-eth0 ]
-EOF
-[ $package_format = deb ] && echo "  - dpkg-reconfigure openssh-server" >> $TMPDIR/user-data
-[ -n "$REBUILD" ] && echo "  - shutdown -h +1" >> $TMPDIR/user-data
-[ -n "$PACKAGE_UPGRADE" ] && echo "package_upgrade: true" >> $TMPDIR/user-data
+#!/bin/bash
+set -xe
 
-echo "yum_repos:" >> $TMPDIR/user-data
-if [ -n "$REPO_EPEL" ]; then
-    cat >> $TMPDIR/user-data << EOF
-  epel:
-    name: Extra Packages for Enterprise Linux 6 - \$basearch
-    baseurl: http://download.fedoraproject.org/pub/epel/6/\$basearch
-    mirrorlist: https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=\$basearch
-    failovermethod: priority
-    enabled: 1
-    gpgcheck: 1
-    gpgkey: https://fedoraproject.org/static/0608B895.txt
-  epel-testing:
-    name: Extra Packages for Enterprise Linux 6 - Testing - \$basearch
-    baseurl: http://download.fedoraproject.org/pub/epel/testing/6/\$basearch
-    mirrorlist: https://mirrors.fedoraproject.org/metalink?repo=testing-epel6&arch=\$basearch
-    failovermethod: priority
-    enabled: 1
-    gpgcheck: 1
-    gpgkey: https://fedoraproject.org/static/0608B895.txt
-EOF
+PUPPET=$PUPPET
+REBUILD=$REBUILD
+REPO_EPEL=$REPO_EPEL
+REPO_PL=$REPO_PL
+PACKAGE=rpm
+[ -x /usr/bin/dpkg ] && PACKAGE=deb
+
+if [ \$PACKAGE = rpm -a -n "\$REPO_EPEL" ]; then
+    rpm -q fedora-release || rpm -ivh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
 fi
-if [ -n "$REPO_PL" ]; then
-    cat >> $TMPDIR/user-data << EOF
-  puppetlabs-products:
-    name: Puppet Labs Products El 6 - \$basearch
-    baseurl: http://yum.puppetlabs.com/el/6/products/\$basearch
-    gpgkey: http://yum.puppetlabs.com/RPM-GPG-KEY-puppetlabs
-    enabled: 1
-    gpgcheck: 1
-  puppetlabs-deps:
-    name: Puppet Labs Dependencies El 6 - \$basearch
-    baseurl: http://yum.puppetlabs.com/el/6/dependencies/\$basearch
-    gpgkey: http://yum.puppetlabs.com/RPM-GPG-KEY-puppetlabs
-    enabled: 1
-    gpgcheck: 1
-  puppetlabs-devel:
-    name: Puppet Labs Devel El 6 - \$basearch
-    baseurl: http://yum.puppetlabs.com/el/6/devel/\$basearch
-    gpgkey: http://yum.puppetlabs.com/RPM-GPG-KEY-puppetlabs
-    enabled: 1
-    gpgcheck: 1
-EOF
+if [ -n "\$REPO_PL" ]; then
+    if [ \$PACKAGE = rpm ]; then
+        if rpm -q fedora-release; then
+            rpm -ivh http://yum.puppetlabs.com/puppetlabs-release-fedora-\$(rpm -q --qf "%{VERSION}" fedora-release).noarch.rpm
+        else
+            rpm -ivh http://yum.puppetlabs.com/puppetlabs-release-el-6.noarch.rpm
+        fi
+    elif [ \$PACKAGE = deb ]; then
+        wget -O /tmp/pl-release.deb http://apt.puppetlabs.com/puppetlabs-release-\$(lsb_release -cs).deb
+        dpkg -i /tmp/pl-release.deb
+        rm -f /tmp/pl-release.deb
+        sed -i '/devel$/ s/^# *//' /etc/apt/sources.list.d/puppetlabs.list
+    fi
 fi
+
+if [ \$PACKAGE = rpm ]; then
+    yum -y install curl rsync yum-utils which sudo
+elif [ \$PACKAGE = deb ]; then
+    apt-get update
+    apt-get install -y curl rsync sudo
+fi
+
+if [ \$PACKAGE = rpm ]; then
+    yum-config-manager --enable epel-testing puppetlabs-devel
+    echo DHCP_HOSTNAME=localhost >> /etc/sysconfig/network-scripts/ifcfg-eth0
+    [ -n "\$PACKAGE_UPGRADE" ] && yum -y upgrade
+else
+    dpkg-reconfigure openssh-server
+    [ -n "\$PACKAGE_UPGRADE" ] && apt-get dist-upgrade -y
+fi
+
+if [ -n "\$PUPPET" ]; then
+    if [ \$PACKAGE = rpm ]; then
+        yum -y install puppet
+    elif [ \$PACKAGE = deb ]; then
+        apt-get install -y puppet
+    fi
+fi
+
+cat > /etc/sudoers.d/10-vagrant << EOS
+vagrant ALL=(ALL) NOPASSWD:ALL
+Defaults:vagrant !requiretty
+EOS
+chmod 0600 /etc/sudoers.d/10-vagrant
+
+useradd -c "Vagrant User" \
+        -G users -m \
+        -p '\$1\$rP8l.Eft\$BPzhFx/gjhZ8lj.N7jHF30' \
+        vagrant
+mkdir -m0700 ~vagrant/.ssh
+echo 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant insecure public key' > ~vagrant/.ssh/authorized_keys
+chmod 0400 ~vagrant/.ssh/authorized_keys
+chown -R vagrant:vagrant ~vagrant/.ssh
+restorecon -Rvv ~vagrant/.ssh || true
+
+[ -n "\$REBUILD" ] && shutdown -h +1
+EOF
 guestfish --remote -- upload $TMPDIR/user-data /var/lib/cloud/seed/nocloud-net/user-data
-cat > $TMPDIR/cloud.cfg << EOF
-cloud_init_modules:
-  - yum_add_repo
-cloud_config_modules:
-  - package_update_upgrade_install
-  - runcmd
-  - users_groups
-  - write-files
-EOF
-guestfish --remote -- upload $TMPDIR/cloud.cfg /etc/cloud/cloud.cfg.d/10_vagrantify.cfg
 guestfish --remote -- exit
 
 [ -n "$RESIZE" ] && qemu-img resize $DISK $RESIZE
