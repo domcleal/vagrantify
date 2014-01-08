@@ -92,6 +92,14 @@ if [ -n "\$REPO_PL" ]; then
     fi
 fi
 
+# F19 cloud image has an SELinux policy bug affecting transitions from cloud-init
+if [ \$PACKAGE = rpm ]; then
+    ENFORCE=\$(getenforce)
+    if [ x\$(rpm -q --qf "%{VERSION}" fedora-release) = x19 ]; then
+        setenforce 0
+    fi
+fi
+
 if [ \$PACKAGE = rpm ]; then
     yum -y install curl rsync yum-utils which sudo
 elif [ \$PACKAGE = deb ]; then
@@ -132,7 +140,11 @@ chmod 0400 ~vagrant/.ssh/authorized_keys
 chown -R vagrant:vagrant ~vagrant/.ssh
 restorecon -Rvv ~vagrant/.ssh || true
 
+[ -n "\$ENFORCE" ] && setenforce \$ENFORCE
+
 [ -n "\$REBUILD" ] && shutdown -h +1
+
+exit 0
 EOF
 guestfish --remote -- upload $TMPDIR/user-data /var/lib/cloud/seed/nocloud-net/user-data
 guestfish --remote -- exit
