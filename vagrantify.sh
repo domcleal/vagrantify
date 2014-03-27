@@ -101,10 +101,19 @@ if [ \$PACKAGE = rpm ]; then
 fi
 
 if [ \$PACKAGE = rpm ]; then
-    yum -y install curl rsync yum-utils which sudo
+    yum -y install curl rsync yum-utils nfs-utils which sudo
+
+    if rpm -q fedora-release; then
+        systemctl enable rpcbind.service; systemctl enable nfs.service
+        service rpcbind start; service nfs start
+    else
+        chkconfig rpcbind on; chkconfig nfs on
+        service rpcbind start; service nfs start
+    fi
 elif [ \$PACKAGE = deb ]; then
     apt-get update
-    apt-get install -y curl rsync sudo
+    apt-get install -y curl rsync sudo nfs-common nfs-kernel-server
+    /etc/init.d/nfs-kernel-server start
 fi
 
 if [ \$PACKAGE = rpm ]; then
