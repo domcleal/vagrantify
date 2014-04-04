@@ -1,3 +1,14 @@
+# vagrant-builder
+
+Wrapper script around [virt-builder](http://libguestfs.org/virt-builder.1.html)
+from the libguestfs suite.
+
+This generates a vagrant-libvirt compatible image based on the pre-built
+templates that virt-builder can consume (and publishes).
+
+Unfortunately many of the images are bigger than the cloud images, so if you're
+trying to minimise the image sizes, then this may not be best.
+
 # vagrantify
 
 Contains scripts to create Vagrant boxes for vagrant-libvirt.  I'm only
