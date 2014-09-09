@@ -73,16 +73,18 @@ REPO_EPEL=$REPO_EPEL
 REPO_PL=$REPO_PL
 PACKAGE=rpm
 [ -x /usr/bin/dpkg ] && PACKAGE=deb
+[ \$PACKAGE = rpm ] && OSMAJ=\$(rpm -q --qf "%{VERSION}" --whatprovides redhat-release | grep -o '^[0-9]*')
 
-if [ \$PACKAGE = rpm -a -n "\$REPO_EPEL" ]; then
-    rpm -q fedora-release || rpm -ivh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+if [ \$PACKAGE = rpm -a -n "\$REPO_EPEL" ] && ! rpm -q fedora-release; then
+    [ \$OSMAJ -eq 6 ] && rpm -ivh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+    [ \$OSMAJ -eq 7 ] && rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-1.noarch.rpm
 fi
 if [ -n "\$REPO_PL" ]; then
     if [ \$PACKAGE = rpm ]; then
         if rpm -q fedora-release; then
-            rpm -ivh http://yum.puppetlabs.com/puppetlabs-release-fedora-\$(rpm -q --qf "%{VERSION}" fedora-release).noarch.rpm
+            rpm -ivh http://yum.puppetlabs.com/puppetlabs-release-fedora-\${OSMAJ}.noarch.rpm
         else
-            rpm -ivh http://yum.puppetlabs.com/puppetlabs-release-el-6.noarch.rpm
+            rpm -ivh http://yum.puppetlabs.com/puppetlabs-release-el-\${OSMAJ}.noarch.rpm
         fi
     elif [ \$PACKAGE = deb ]; then
         wget -O /tmp/pl-release.deb http://apt.puppetlabs.com/puppetlabs-release-\$(lsb_release -cs).deb
@@ -95,7 +97,7 @@ fi
 # F19 cloud image has an SELinux policy bug affecting transitions from cloud-init
 if [ \$PACKAGE = rpm ]; then
     ENFORCE=\$(getenforce)
-    if [ x\$(rpm -q --qf "%{VERSION}" fedora-release) = x19 ]; then
+    if [ x\${OSMAJ} = x19 ]; then
         setenforce 0
     fi
 fi
