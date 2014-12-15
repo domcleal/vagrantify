@@ -76,8 +76,16 @@ PACKAGE=rpm
 [ \$PACKAGE = rpm ] && OSMAJ=\$(rpm -q --qf "%{VERSION}" --whatprovides redhat-release | grep -o '^[0-9]*')
 
 if [ \$PACKAGE = rpm -a -n "\$REPO_EPEL" ] && ! rpm -q fedora-release; then
-    [ \$OSMAJ -eq 6 ] && rpm -ivh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
-    [ \$OSMAJ -eq 7 ] && rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-1.noarch.rpm
+    cat <<EOM >/etc/yum.repos.d/epel-bootstrap.repo
+[epel]
+name=Bootstrap EPEL
+mirrorlist=http://mirrors.fedoraproject.org/mirrorlist?repo=epel-\\\$releasever&arch=\\\$basearch
+failovermethod=priority
+enabled=0
+gpgcheck=0
+EOM
+    yum --enablerepo=epel -y install epel-release
+    rm -f /etc/yum.repos.d/epel-bootstrap.repo
 fi
 if [ -n "\$REPO_PL" ]; then
     if [ \$PACKAGE = rpm ]; then
