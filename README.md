@@ -47,6 +47,7 @@ Tested with:
 * Fedora 19, 20 images: [cloud.fedoraproject.org](http://cloud.fedoraproject.org/)
 * RHEL 6.5 image: [Customer Portal](https://rhn.redhat.com/rhn/software/channel/downloads/Download.do?cid=16952)
 * CentOS 6.4 OpenStack image: [centos.org](http://dev.centos.org/centos/hvm/)
+* Debian 8 (Jessie) image: [debian.org](http://cdimage.debian.org/cdimage/openstack/current/)
 * Debian 7 (Wheezy) image: [openstack-debian-images](http://packages.debian.org/openstack-debian-images)
 * Ubuntu 12.04 image: [cloud-images.ubuntu.com](http://cloud-images.ubuntu.com/precise/current/)
 

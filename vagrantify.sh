@@ -157,6 +157,13 @@ restorecon -Rvv ~vagrant/.ssh || true
 exit 0
 EOF
 guestfish --remote -- upload $TMPDIR/user-data /var/lib/cloud/seed/nocloud-net/user-data
+
+cat > $TMPDIR/cloud.cfg << EOF
+# Installed by vagrantify
+datasource_list: [NoCloud, NoCloudNet]
+EOF
+guestfish --remote -- upload $TMPDIR/cloud.cfg /etc/cloud/cloud.cfg.d/95_vagrantify.cfg
+
 guestfish --remote -- exit
 
 [ -n "$RESIZE" ] && qemu-img resize $DISK $RESIZE
